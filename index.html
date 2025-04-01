@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>COMBAT INITIATIVE</title>
+  <!-- Include Google Font "Oswald" for the character names -->
+  <link href="https://fonts.googleapis.com/css2?family=Oswald&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: url('red_dragon.png') no-repeat center center fixed;
+      background-size: cover;
+    }
+    /* Header with images and title */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    #header img {
+      width: 100px;
+      height: auto;
+    }
+    #header h1 {
+      margin: 0;
+      font-size: 2em;
+      color: #fff;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    }
+    /* Entry section styling */
+    #entry {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #entry input, #entry select, #entry button {
+      margin: 5px;
+      padding: 5px;
+      font-size: 1em;
+    }
+    /* Two-column layout */
+    #columns {
+      display: flex;
+    }
+    #unrolled-column, #rolled-column {
+      flex: 1;
+      padding: 10px;
+      background: rgba(255,255,255,0.8);
+      border-radius: 10px;
+      margin: 5px;
+    }
+    #unrolled-column {
+      margin-right: 10px;
+    }
+    /* Player card styling with 70% transparent background */
+    .player {
+      border: 2px solid black;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      background-color: rgba(255,255,255,0.7);
+    }
+    .player-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    /* Increase button size slightly */
+    .player-controls button {
+      padding: 8px 12px;
+      font-size: 1em;
+    }
+    .roll-result {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-effects {
+      margin-top: 10px;
+    }
+    .status-effects input {
+      padding: 3px;
+      font-size: 0.9em;
+    }
+    .status-effects button {
+      padding: 5px 10px;
+      font-size: 1em;
+    }
+    .status-effect-list {
+      margin-top: 5px;
+    }
+    .status-effect {
+      display: inline-block;
+      background-color: #eee;
+      padding: 2px 6px;
+      margin-right: 5px;
+      border-radius: 3px;
+    }
+    .status-effect button {
+      margin-left: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    /* Label for Current/Up Next */
+    .turn-label {
+      font-weight: bold;
+      margin-right: 5px;
+      color: green;
+    }
+    /* Unique font for character names */
+    .player-header-name {
+      font-size: 1.5em;
+      font-family: 'Oswald', sans-serif;
+    }
+    .initiative-text {
+      font-size: 0.9em;
+    }
+    /* Overlay styling */
+    #overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+    }
+    #overlay img {
+      max-width: 90%;
+      max-height: 90%;
+    }
+  </style>
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <!-- Firebase Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    // Your Firebase configuration (ensure storageBucket is correct)
+    const firebaseConfig = {
+      apiKey: "AIzaSyA71quocoifbpzRSDUmj-p_Qr31F7ftS7g",
+      authDomain: "webinitiative-824a5.firebaseapp.com",
+      projectId: "webinitiative-824a5",
+      storageBucket: "webinitiative-824a5.appspot.com",
+      messagingSenderId: "643593020547",
+      appId: "1:643593020547:web:9d8bdc21626a766b22a7b6",
+      measurementId: "G-CL2P8ZQGQX"
+    };
+
+    // Initialize Firebase (using compat libraries)
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Helper function to show an overlay image for a given duration (in ms)
+    function showOverlay(imageSrc, duration) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('overlay');
+        const overlayImg = document.getElementById('overlay-img');
+        overlayImg.src = imageSrc;
+        overlay.style.display = 'flex';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          resolve();
+        }, duration);
+      });
+    }
+  </script>
+</head>
+<body>
+  <!-- Header Section with images and title -->
+  <div id="header">
+    <img src="roll_for_initiative.gif" alt="Roll for Initiative">
+    <h1>COMBAT INITIATIVE</h1>
+    <img src="dnd_night.gif" alt="D&D Night">
+  </div>
+
+  <!-- Entry Section -->
+  <div id="entry">
+    <input type="text" id="player-name" placeholder="Character Name">
+    <input type="number" id="player-modifier" placeholder="Modifier" value="0">
+    <select id="player-label">
+      <option value="player">Player</option>
+      <option value="npc">NPC</option>
+      <option value="enemy">Enemy</option>
+    </select>
+    <button id="add-player-btn">Add Character</button>
+    <br>
+    <button id="reset-btn">Reset Combat</button>
+  </div>
+
+  <!-- Two-Column Layout -->
+  <div id="columns">
+    <!-- Left Column: Unrolled characters -->
+    <div id="unrolled-column">
+      <h2>Unrolled</h2>
+      <div id="unrolled"></div>
+    </div>
+
+    <!-- Right Column: Rolled characters -->
+    <div id="rolled-column">
+      <h2>Rolled</h2>
+      <button id="next-btn">Next</button>
+      <div id="rolled"></div>
+    </div>
+  </div>
+
+  <!-- Audio for dice roll sound (using a .wav file) -->
+  <audio id="dice-sound">
+    <source src="dice-roll-sound.wav" type="audio/wav">
+    Your browser does not support the audio element.
+  </audio>
+
+  <!-- Overlay for special roll images -->
+  <div id="overlay">
+    <img id="overlay-img" src="" alt="Popup">
+  </div>
+
+  <script>
+    let players = [];
+
+    // Real-time listener from Firestore
+    db.collection("players").onSnapshot((snapshot) => {
+      players = [];
+      snapshot.forEach((doc) => {
+        let data = doc.data();
+        data.id = doc.id;
+        players.push(data);
+      });
+      renderPlayers();
+    });
+
+    // Create a player card with colored border and semi-transparent background
+    function createPlayerElement(player) {
+      const playerDiv = document.createElement('div');
+      playerDiv.className = 'player';
+      playerDiv.dataset.id = player.id;
+
+      const label = player.label || 'player';
+      if (label === 'player') {
+        playerDiv.style.borderColor = 'blue';
+      } else if (label === 'npc') {
+        playerDiv.style.borderColor = 'grey';
+      } else if (label === 'enemy') {
+        playerDiv.style.borderColor = 'red';
+      } else {
+        playerDiv.style.borderColor = 'black';
+      }
+
+      // Header: Name, modifier, and label
+      const header = document.createElement('div');
+      header.innerHTML = '<span class="player-header-name">' + player.name + '</span> (Modifier: ' + player.modifier + ', ' + label.toUpperCase() + ')';
+      playerDiv.appendChild(header);
+
+      // Roll result display with smaller initiative text
+      const rollResult = document.createElement('div');
+      rollResult.className = 'roll-result';
+      rollResult.innerHTML = player.initiative !== null ? 'Initiative: <span class="initiative-text">' + player.initiative + '</span>' : 'Not rolled yet';
+      playerDiv.appendChild(rollResult);
+
+      // Controls: Only add "Roll" button if not yet rolled.
+      const controlsDiv = document.createElement('div');
+      controlsDiv.className = 'player-controls';
+      if (player.initiative === null) {
+        const rollBtn = document.createElement('button');
+        rollBtn.textContent = 'Roll';
+        rollBtn.addEventListener('click', function() {
+          rollForPlayer(player.id, rollResult, rollBtn);
+        });
+        controlsDiv.appendChild(rollBtn);
+      }
+      playerDiv.appendChild(controlsDiv);
+
+      // Status Effects Section with Kill button to the right of "Add Status"
+      const statusDiv = document.createElement('div');
+      statusDiv.className = 'status-effects';
+
+      const statusInput = document.createElement('input');
+      statusInput.type = 'text';
+      statusInput.placeholder = 'Add status effect';
+      statusDiv.appendChild(statusInput);
+
+      const addStatusBtn = document.createElement('button');
+      addStatusBtn.textContent = 'Add Status';
+      addStatusBtn.addEventListener('click', function() {
+        const effect = statusInput.value.trim();
+        if (effect) {
+          let updatedEffects = player.statusEffects || [];
+          updatedEffects.push(effect);
+          db.collection("players").doc(player.id).update({
+            statusEffects: updatedEffects
+          });
+          statusInput.value = '';
+        }
+      });
+      statusDiv.appendChild(addStatusBtn);
+
+      const killBtn = document.createElement('button');
+      killBtn.textContent = 'Kill';
+      killBtn.addEventListener('click', function() {
+        killPlayer(player.id);
+      });
+      statusDiv.appendChild(killBtn);
+
+      const statusList = document.createElement('div');
+      statusList.className = 'status-effect-list';
+      statusDiv.appendChild(statusList);
+
+      if (player.statusEffects) {
+        player.statusEffects.forEach((effect, index) => {
+          const span = document.createElement('span');
+          span.className = 'status-effect';
+          span.textContent = effect;
+          const removeBtn = document.createElement('button');
+          removeBtn.textContent = 'x';
+          removeBtn.addEventListener('click', function() {
+            let updatedEffects = player.statusEffects;
+            updatedEffects.splice(index, 1);
+            db.collection("players").doc(player.id).update({
+              statusEffects: updatedEffects
+            });
+          });
+          span.appendChild(removeBtn);
+          statusList.appendChild(span);
+        });
+      }
+      playerDiv.appendChild(statusDiv);
+
+      return playerDiv;
+    }
+
+    // Roll initiative with dice animation, sound, and special overlay for natural 20 or 1
+    function rollForPlayer(playerId, rollResultElement, rollBtn) {
+      const audio = document.getElementById('dice-sound');
+      audio.currentTime = 0;
+      audio.play();
+
+      rollResultElement.innerHTML = '<img id="dice-animation" src="Dice20.png" alt="Rolling..." style="width:100px;height:100px;">';
+      rollBtn.disabled = true;
+
+      let animationInterval = setInterval(() => {
+        let randomFace = Math.floor(Math.random() * 20) + 1;
+        document.getElementById('dice-animation').src = "Dice" + randomFace + ".png";
+      }, 100);
+
+      setTimeout(function() {
+        clearInterval(animationInterval);
+        const roll = Math.floor(Math.random() * 20) + 1;
+        const playerDoc = players.find(p => p.id === playerId);
+        const initiative = roll + parseInt(playerDoc.modifier, 10);
+
+        // Special handling for natural 20 or natural 1
+        if (roll === 20) {
+          const options = ["nat_20.gif", "fire_roll.gif"];
+          const selectedImage = options[Math.floor(Math.random() * options.length)];
+          // If the selected image is fire_roll.gif, play the fire sound
+          if (selectedImage === "fire_roll.gif") {
+            let fireAudio = new Audio("fire_sound.wav");
+            fireAudio.play();
+          }
+          showOverlay(selectedImage, 2000).then(() => {
+            db.collection("players").doc(playerId).update({
+              initiative: initiative,
+              turnOrder: null
+            });
+            rollResultElement.innerHTML = '<img src="Dice' + roll + '.png" alt="Result" style="width:100px;height:100px;"> ' +
+                                          'Initiative: <span class="initiative-text">' + initiative + '</span> (d20: ' + roll + ')';
+            rollBtn.disabled = false;
+          });
+        } else if (roll === 1) {
+          let failAudio = new Audio("fail_roll.wav");
+          failAudio.play();
+          showOverlay("fail_roll.gif", 2000).then(() => {
+            db.collection("players").doc(playerId).update({
+              initiative: initiative,
+              turnOrder: null
+            });
+            rollResultElement.innerHTML = '<img src="Dice' + roll + '.png" alt="Result" style="width:100px;height:100px;"> ' +
+                                          'Initiative: <span class="initiative-text">' + initiative + '</span> (d20: ' + roll + ')';
+            rollBtn.disabled = false;
+          });
+        } else {
+          db.collection("players").doc(playerId).update({
+            initiative: initiative,
+            turnOrder: null
+          });
+          rollResultElement.innerHTML = '<img src="Dice' + roll + '.png" alt="Result" style="width:100px;height:100px;"> ' +
+                                        'Initiative: <span class="initiative-text">' + initiative + '</span> (d20: ' + roll + ')';
+          rollBtn.disabled = false;
+        }
+      }, 2000);
+    }
+
+    // Delete a character
+    function killPlayer(playerId) {
+      db.collection("players").doc(playerId).delete();
+    }
+
+    // Render players into Unrolled and Rolled columns with sorted order for rolled players
+    function renderPlayers() {
+      const unrolledDiv = document.getElementById('unrolled');
+      const rolledDiv = document.getElementById('rolled');
+      unrolledDiv.innerHTML = '';
+      rolledDiv.innerHTML = '';
+
+      players.filter(p => p.initiative === null).forEach(player => {
+        const card = createPlayerElement(player);
+        unrolledDiv.appendChild(card);
+      });
+
+      let rolledPlayers = players.filter(p => p.initiative !== null);
+      if (rolledPlayers.length > 0) {
+        // Sort rolled players by descending initiative and reassign turnOrder
+        rolledPlayers.sort((a, b) => b.initiative - a.initiative);
+        for (let i = 0; i < rolledPlayers.length; i++) {
+          rolledPlayers[i].turnOrder = i;
+          db.collection("players").doc(rolledPlayers[i].id).update({ turnOrder: i });
+        }
+      }
+      rolledPlayers.sort((a, b) => a.turnOrder - b.turnOrder);
+      rolledPlayers.forEach((player, index) => {
+        const card = createPlayerElement(player);
+        if (index === 0) {
+          const currentLabel = document.createElement('span');
+          currentLabel.textContent = "Current";
+          currentLabel.className = "turn-label";
+          card.insertBefore(currentLabel, card.firstChild);
+        } else if (index === 1) {
+          const nextLabel = document.createElement('span');
+          nextLabel.textContent = "Up Next";
+          nextLabel.className = "turn-label";
+          card.insertBefore(nextLabel, card.firstChild);
+        }
+        rolledDiv.appendChild(card);
+      });
+    }
+
+    // "Next" button rotates the rolled players
+    document.getElementById('next-btn').addEventListener('click', function() {
+      let rolledPlayers = players.filter(p => p.initiative !== null);
+      if (rolledPlayers.length === 0) return;
+      rolledPlayers.sort((a, b) => a.turnOrder - b.turnOrder);
+      let first = rolledPlayers.shift();
+      rolledPlayers.push(first);
+      rolledPlayers.forEach((player, index) => {
+        db.collection("players").doc(player.id).update({ turnOrder: index });
+      });
+    });
+
+    // "Reset" button: Remove NPC/enemy and reset players (initiative and turnOrder cleared)
+    document.getElementById('reset-btn').addEventListener('click', function() {
+      players.forEach(player => {
+        if (player.label !== "player") {
+          db.collection("players").doc(player.id).delete();
+        } else {
+          db.collection("players").doc(player.id).update({
+            initiative: null,
+            turnOrder: null
+          });
+        }
+      });
+    });
+
+    // Add new character using entry form
+    document.getElementById('add-player-btn').addEventListener('click', function() {
+      const nameInput = document.getElementById('player-name');
+      const modInput = document.getElementById('player-modifier');
+      const labelSelect = document.getElementById('player-label');
+      const name = nameInput.value.trim();
+      const modifier = modInput.value.trim() === '' ? 0 : parseInt(modInput.value, 10);
+      if (name) {
+        db.collection("players").add({
+          name: name,
+          modifier: modifier,
+          label: labelSelect.value,
+          initiative: null,
+          statusEffects: [],
+          turnOrder: null
+        });
+        nameInput.value = '';
+        modInput.value = 0;
+        labelSelect.value = "player";
+      }
+    });
+  </script>
+</body>
+</html>
